@@ -9,7 +9,6 @@ $info = mysqli_fetch_assoc(mysqli_query($conn, "SELECT nama_kobong FROM kobong W
 // 1. TAMBAH JAJAN
 if(isset($_POST['jajan'])){
     $sid = $_POST['santri_id']; $nom = $_POST['nominal']; $ket = $_POST['keterangan']; $tgl = date('Y-m-d');
-    // Cek Saldo
     $saldo = mysqli_fetch_assoc(mysqli_query($conn, "SELECT (SELECT SUM(nominal) FROM transaksi WHERE santri_id='$sid' AND jenis='masuk') - (SELECT SUM(nominal) FROM transaksi WHERE santri_id='$sid' AND jenis='keluar') as s"))['s'];
     if($saldo < $nom) echo "<script>alert('Saldo Tidak Cukup!');</script>";
     else mysqli_query($conn, "INSERT INTO transaksi (tanggal,jenis,nominal,keterangan,santri_id,created_by) VALUES ('$tgl','keluar','$nom','$ket','$sid','$_SESSION[id]')");
@@ -33,6 +32,7 @@ $tahun = $_GET['tahun'] ?? date('Y');
 <html>
 <head>
     <title>Pengurus Kobong</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1"> 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <style>
@@ -46,8 +46,11 @@ $tahun = $_GET['tahun'] ?? date('Y');
 <body>
 
 <div class="bg-islamic p-4 mb-4 text-center">
-    <h2 class="fw-bold"><i class="bi bi-shop"></i> Kobong <?= $info['nama_kobong'] ?></h2>
-    <a href="logout.php" class="btn btn-outline-light btn-sm rounded-pill mt-2">Logout</a>
+    <h3 class="fw-bold"><i class="bi bi-shop"></i> Kobong <?= $info['nama_kobong'] ?></h3>
+    <div class="mt-2">
+        <a href="profil.php" class="btn btn-warning btn-sm fw-bold">Profil</a>
+        <a href="logout.php" class="btn btn-outline-light btn-sm">Logout</a>
+    </div>
 </div>
 
 <div class="container pb-5">
@@ -63,20 +66,19 @@ $tahun = $_GET['tahun'] ?? date('Y');
         </form>
     </div>
 
-    <div class="row">
-        <?php
+    <div class="row g-3"> <?php
         $q = mysqli_query($conn, "SELECT * FROM santri WHERE kobong_id='$kobong_id' ORDER BY nama_santri ASC");
         while($s = mysqli_fetch_array($q)){
             $sid = $s['id'];
             $saldo = mysqli_fetch_assoc(mysqli_query($conn, "SELECT (SELECT SUM(nominal) FROM transaksi WHERE santri_id='$sid' AND jenis='masuk') - (SELECT SUM(nominal) FROM transaksi WHERE santri_id='$sid' AND jenis='keluar') as s"))['s'];
             $out_bln = mysqli_fetch_assoc(mysqli_query($conn, "SELECT SUM(nominal) as t FROM transaksi WHERE santri_id='$sid' AND jenis='keluar' AND MONTH(tanggal)='$bulan' AND YEAR(tanggal)='$tahun'"))['t'];
         ?>
-        <div class="col-md-6 mb-3">
-            <div class="card card-santri h-100">
+        <div class="col-12 col-md-6 mb-3"> 
+            <div class="card card-santri h-100 shadow-sm">
                 <div class="card-body">
                     <div class="d-flex justify-content-between">
-                        <h5 class="fw-bold mb-1"><?= $s['nama_santri'] ?></h5>
-                        <span class="badge bg-success">Saldo: <?= rupiah($saldo??0) ?></span>
+                        <h5 class="fw-bold mb-1 text-capitalize"><?= $s['nama_santri'] ?></h5>
+                        <span class="badge bg-success" style="font-size: 0.9rem;">Saldo: <?= rupiah($saldo??0) ?></span>
                     </div>
                     <small class="text-muted d-block mb-2">Jajan Bulan Ini: <span class="text-danger fw-bold"><?= rupiah($out_bln??0) ?></span></small>
                     
@@ -93,27 +95,28 @@ $tahun = $_GET['tahun'] ?? date('Y');
         </div>
 
         <div class="modal fade" id="modalRiwayat<?= $sid ?>" tabindex="-1">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header bg-light"><h6 class="modal-title">Riwayat: <?= $s['nama_santri'] ?> (Bulan <?= $bulan ?>)</h6><button class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-dialog modal-fullscreen-sm-down"> <div class="modal-content">
+                    <div class="modal-header bg-light"><h6 class="modal-title text-capitalize"><?= $s['nama_santri'] ?></h6><button class="btn-close" data-bs-dismiss="modal"></button></div>
                     <div class="modal-body p-0">
-                        <table class="table table-sm table-striped mb-0">
-                            <?php 
-                            $qr = mysqli_query($conn, "SELECT * FROM transaksi WHERE santri_id='$sid' AND jenis='keluar' AND MONTH(tanggal)='$bulan' ORDER BY tanggal DESC");
-                            while($r=mysqli_fetch_array($qr)){ ?>
-                            <tr>
-                                <form method="post">
-                                    <input type="hidden" name="trans_id" value="<?= $r['id'] ?>">
-                                    <td width="30%"><input type="text" name="keterangan" class="form-control form-control-sm" value="<?= $r['keterangan'] ?>"></td>
-                                    <td width="30%"><input type="number" name="nominal" class="form-control form-control-sm" value="<?= $r['nominal'] ?>"></td>
-                                    <td class="text-end">
-                                        <button type="submit" name="update_jajan" class="btn btn-primary btn-sm py-0"><i class="bi bi-check"></i></button>
-                                        <a href="pengurus.php?hapus=<?= $r['id'] ?>" class="btn btn-danger btn-sm py-0" onclick="return confirm('Hapus?')"><i class="bi bi-trash"></i></a>
-                                    </td>
-                                </form>
-                            </tr>
-                            <?php } ?>
-                        </table>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped mb-0">
+                                <?php 
+                                $qr = mysqli_query($conn, "SELECT * FROM transaksi WHERE santri_id='$sid' AND jenis='keluar' AND MONTH(tanggal)='$bulan' ORDER BY tanggal DESC");
+                                while($r=mysqli_fetch_array($qr)){ ?>
+                                <tr>
+                                    <form method="post">
+                                        <input type="hidden" name="trans_id" value="<?= $r['id'] ?>">
+                                        <td width="35%"><input type="text" name="keterangan" class="form-control form-control-sm" value="<?= $r['keterangan'] ?>"></td>
+                                        <td width="35%"><input type="number" name="nominal" class="form-control form-control-sm" value="<?= $r['nominal'] ?>"></td>
+                                        <td class="text-end">
+                                            <button type="submit" name="update_jajan" class="btn btn-primary btn-sm py-0"><i class="bi bi-check"></i></button>
+                                            <a href="pengurus.php?hapus=<?= $r['id'] ?>" class="btn btn-danger btn-sm py-0" onclick="return confirm('Hapus?')"><i class="bi bi-trash"></i></a>
+                                        </td>
+                                    </form>
+                                </tr>
+                                <?php } ?>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
